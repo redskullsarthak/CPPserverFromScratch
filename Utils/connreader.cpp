@@ -1,6 +1,16 @@
 // tested this works 
 
-#include<bits/stdc++.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <unistd.h>
+
+#include <condition_variable>
+#include <iostream>
+#include <mutex>
+#include <queue>
+#include <string>
+#include <thread>
+#include <utility>
 // reads from a file or a connection 8 bytes at a time , only ouptuts 
 //after encountering a new line '/n'
 
@@ -22,7 +32,7 @@ public:
         // Wait until there is a message OR the channel is closed
         cv.wait(lock, [this]{ return !q.empty() || closed; });// avoids busy waiting 
 
-        // If the queue is empty and closed is true, we are done
+        // If the queue is empty and closed is true, we are done else popping can be done
         if (q.empty() && closed) return false;
 
         out = q.front();
@@ -35,17 +45,22 @@ public:
         closed = true; 
         cv.notify_all(); // Wake up any threads waiting in pop()
     }
+
+    bool clearChannel(){
+        std::lock_guard<std::mutex> lock(mtx);
+        std::queue<std::string> empty;
+        swap(q,empty);
+        closed = false;
+        cv.notify_all();
+        return true;
+    }
 };
 
-int readTCP(LineChannel & channel) {
-    std::ifstream f("messages.txt");
-    if (!f.is_open()) return -1;
-
+int readTCP(LineChannel & channel,int sck_fd) { //sck_fd==socket file descriptor 
     char buffer[8];
     std::string s;
     while (true) {
-        f.read(buffer, 8);
-        std::streamsize sz = f.gcount();
+        auto sz=recv(sck_fd,buffer,sizeof(buffer),0); // instead of file read the data into a buffer from a socket 
         if (sz > 0) {
            for (int i = 0; i < sz; i++) {
               if (buffer[i] != '\n') {
@@ -56,35 +71,41 @@ int readTCP(LineChannel & channel) {
               }
            }
         }
-        if (f.eof()) break;
+        else break;// some error or read everything and connection closed 
     }
     if (!s.empty()) channel.push(s);
     channel.close();
     return 0;
 }
 int main() {
-    // 1. Create a dummy test file
-    std::ofstream out("messages.txt");
-    out << "Do you have what it takes to be an engineer at TheStartup™?\n";
-    out << "Are you willing to work 80 hours a week?\n";
-    out << "Can you say \"synergy\" with a straight face?\n";
-    out << "end"; // Note: no newline here to test the "leftover" logic
-    out.close();
-
-    // 2. Setup the channel and thread
     LineChannel channel;
-    
-    // Use std::ref to pass the channel by reference to the thread
-    std::thread readerThread(readTCP, std::ref(channel));
+    int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int opt = 1;
+    setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+    sockaddr_in address;
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(42069);
 
-    // 3. Consume the data
-    std::string str;
-    while (channel.pop(str)) {
-        std::cout << "read: " << str << std::endl;
+    if (bind(server_fd, (struct sockaddr*)&address, sizeof(address)) < 0) {
+        perror("Bind failed");
+        return 1;
     }
 
-    readerThread.join();
-    std::cout << "--- Connection Closed ---" << std::endl;
+    listen(server_fd, 3);
+    std::cout << "Server listening on port 42069..." << std::endl;
+    while(true){
+        int addrlen=sizeof(address);
+        int client_fd=accept(server_fd,(struct sockaddr*)&address,(socklen_t*)&addrlen);
+        if(!channel.clearChannel()) return 1;
+        std::thread readerThread(readTCP,std::ref(channel),client_fd); // this thread will be busy trying to listen to the network 
+        // meanwhile the main thread can process what i want , that is output the lines to stdout
+        std::string line;
+        while(channel.pop(line)){
+            std::cout<<line<<std::endl;
+        }
+        readerThread.join();
+    }
 
     return 0;
 }
