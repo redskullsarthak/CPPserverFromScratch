@@ -1,0 +1,20 @@
+tcp--
+1.a protocol of how computers talk to each other 
+
+2.data-- fragmented -- packets. (each packet is numbered 1....n)
+
+3.usually there is a fixed window that determines the number of packets that are 
+in flight
+
+4.receiver sends an acknowledgment for a recieved packet , sender is waiting for this 
+ack
+
+5.sliding window moves if all the contiguous packet segments have recieved ack
+
+6.this is how tcp is reliable and in order 
+
+udps -- send all packets at once , receiver sends a nack for un-received 
+packets , this nack only feedback makes udp very performant but unreliable 
+and complex as it involves developing algos that restructure these packets
+and identify missing packets 
+
