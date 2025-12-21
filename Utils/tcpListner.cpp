@@ -7,8 +7,6 @@
 // field lines\r\n
 // \r\n
 // body
-
-
 struct HttpReq{
   std::string requestLine{};
   std::map<std::string,std::string> headers{};// field-lines;
@@ -30,22 +28,27 @@ void parser(std::string &line, HttpReq& hr, int &state) {
         }
         size_t colonPos = line.find(':');
         if (colonPos != std::string::npos) {
-            std::string key = line.substr(0, colonPos);
-            std::string value = line.substr(colonPos + 1);
-            if (!value.empty() && value[0] == ' ') value.erase(0, 1);
-            hr.headers[key] = value;
+        std::string key{};
+        std::string value{};
+        for(int i=0;i<colonPos;i++){
+            if(line[i]==' ') continue;
+            else key.push_back(line[i]);
+        }
+        for(int i=colonPos+2;i<line.length();i++){
+           if(line[i]==' ') break;
+           value.push_back(line[i]);
+        }
+         hr.headers[key]=value;
         }
     } 
     else {
-        std::cout<<"All done Here"<<std::endl;
         hr.body += line ;
     }
 }
 
-
 int readTCP(LineChannel & channel,int sck_fd) { //sck_fd==client socket file descriptor 
-    char buffer[8];
-    std::string s;
+    char buffer[4096];// faster than 8 bytes as recv is a system call , mode switch overhead avoided 512 times 
+    std::string s;//(state machine)
     HttpReq httprequest;
     int cnt=1;
     while (true) {
@@ -63,18 +66,14 @@ int readTCP(LineChannel & channel,int sck_fd) { //sck_fd==client socket file des
         }
         else break;// some error or read everything and connection closed 
     }
-    // If the last chunk doesn't end with '\n', it never goes through parser() above.
-    // This is common for HTTP bodies (they're not line-based).
     if (!s.empty()) {
         channel.push(s);
         parser(s,httprequest,cnt);
         s.clear();
     }
-    std::cout<<httprequest.requestLine<<std::endl;
-    for (const auto& [key, value] : httprequest.headers) {
-        std::cout << key << ": " << value << std::endl;
+    for(auto &kp:httprequest.headers){
+        std::cout<<kp.first<<" "<<kp.second<<std::endl;
     }
-    std::cout<<httprequest.body<<std::endl;
     channel.close();
     return 0;
 }
@@ -111,7 +110,7 @@ int runTCPLineServer(uint16_t port) {
         readerThread.join();
         close(client_fd);
     }
-
+    
     close(server_fd);
     return 0;
 }
