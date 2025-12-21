@@ -20,3 +20,18 @@ set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
 target_link_libraries(utils_main PRIVATE Threads::Threads)
+
+include(CTest)
+
+if(BUILD_TESTING)
+  add_executable(request_test
+    internal/request/request_test.cpp
+    internal/request/request.cpp
+  )
+
+  target_include_directories(request_test PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/internal/request
+  )
+
+  add_test(NAME request_test COMMAND request_test)
+endif()
