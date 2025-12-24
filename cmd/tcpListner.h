@@ -1,4 +1,4 @@
-#pragma once
+#pragma once;
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <unistd.h>
@@ -8,14 +8,19 @@
 #include <mutex>
 #include <queue>
 #include <string>
+#include <map>
 #include <thread>
 #include <utility>
-
+struct HttpReq{
+    std::string requestLine;
+    std::map<std::string,std::string> headers;
+    std::string body;
+};
 // reads from a file or a connection 8 bytes at a time , only ouptuts
 // after encountering a new line '/n'
 
-class LineChannel {
-    std::queue<std::string> q;
+class LineChannel { // glorious thread safe queue for safely writing to a queue and removing stuff from it 
+    std::queue<std::string> q;// critical section ,(1 reader, 1 writer is usually enough for one connection)
     std::condition_variable cv;
     std::mutex mtx;
     bool closed = false;

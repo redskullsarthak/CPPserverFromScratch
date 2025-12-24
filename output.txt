@@ -1,8 +1,8 @@
-POST /coffee HTTP/1.1
+POST / HTTP/1.1
 Host: localhost:42069
 User-Agent: curl/8.7.1
 Accept: */*
-Content-Type: application/json
-Content-Length: 38
+Content-Length: 100
+Content-Type: application/x-www-form-urlencoded
 
-{"flavor":"dark mode""hello": "world"}
+Small data
