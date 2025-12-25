@@ -1,9 +1,10 @@
 
 // this is an example of how one can build there own router 
-#include<map>
-#include<memory>
+#include <map>
+#include <memory>
 #include <string>
-#include<interface.hpp>
+
+#include "interface.hpp"
 
 class router{
    std::map<std::string,std::unique_ptr<baseInterface>> handler; 
@@ -14,12 +15,15 @@ class router{
       static router rtr;
       return rtr;
    }
-   bool set(std::string route,baseInterface & bi){
-       std::unique_ptr<baseInterface> biptr=std::make_unique<baseInterface>(bi);
-       handler[route]=std::move(biptr);
+     bool set(std::string route, std::unique_ptr<baseInterface> bi){
+       handler[std::move(route)] = std::move(bi);
+       return true;
    }
-   std::unique_ptr<baseInterface> getIntr(std::string target){
-     return std::move(handler[target]);
+   baseInterface* getIntr(const std::string& target){
+     if(handler.find(target) != handler.end()) {
+         return handler[target].get();
+     }
+     return nullptr;
    }
    router(router&router)=delete;
    router& operator=(const router&router) = delete;

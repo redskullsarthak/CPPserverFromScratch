@@ -23,7 +23,7 @@ static inline void trim_inplace(std::string &s) {
     rtrim_inplace(s);
 }
 
-void parseToParts(std::string &method, std::string &target, std::string &version, HttpReq& hr) {
+static void parseToParts(std::string &method, std::string &target, std::string &version, HttpReq& hr) {
     if (hr.requestLine.empty()) return;
     size_t firstSpace = hr.requestLine.find(' ');
     if (firstSpace == std::string::npos) return;

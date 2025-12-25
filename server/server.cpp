@@ -1,6 +1,6 @@
 #include "server.hpp"
 
-void parseToParts(std::string &method, std::string &target, std::string &version, HttpReq& hr) {
+static void parseToParts(std::string &method, std::string &target, std::string &version, HttpReq& hr) {
     if (hr.requestLine.empty()) return;
     size_t firstSpace = hr.requestLine.find(' ');
     if (firstSpace == std::string::npos) return;
@@ -28,21 +28,29 @@ void server::readerAndWriterForOne(std::unique_ptr<LineChannel> channel, int cli
     reader.join();
     std::string method{},target{},version{};
     parseToParts(method,target,version,httprequest);
-    std::unique_ptr<baseInterface> bi=std::move(rtr.getIntr(target));
+    baseInterface* bi = rtr.getIntr(target);
+    if (!bi) {
+        send(client_sck_id, "wrong Handler", 13, 0);
+        close(client_sck_id);
+        sm.release();
+        return;
+    }
+
     if(method=="get") bi->get(httprequest);
     else if(method=="post") bi->post(httprequest);
     else if(method=="put") bi->patch(httprequest);
     else if(method=="delete") bi->del(httprequest);
-    else{
-        send(client_sck_id,"wrong Handler",12,0);
+    else {
+        send(client_sck_id, "wrong method", 12, 0);
     }
-    sem_post(&sm);// increase the amount of threads as this is done 
+
+    close(client_sck_id);
+    sm.release();// increase the amount of threads as this is done 
 }
 
 
 int server::listener(uint16_t port) {
 
-    sem_init(&sm,0,5);
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
     int opt = 1;
     setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
@@ -59,12 +67,12 @@ int server::listener(uint16_t port) {
     listen(server_fd, 3);
     std::cout << "Server listening on port " << port << "..." << std::endl;
     while(true){     
-        sem_wait(&sm);
+        sm.acquire();
         int addrlen=sizeof(address);
         int client_fd=accept(server_fd,(struct sockaddr*)&address,(socklen_t*)&addrlen);
         // create a diffrent thread safe line channel for this thread 
         std::unique_ptr<LineChannel> channel=std::make_unique<LineChannel>();
-        std::thread readerForOneConnection(readerAndWriterForOne,std::move(channel),client_fd);
+        std::thread readerForOneConnection(&server::readerAndWriterForOne, this, std::move(channel), client_fd);
         readerForOneConnection.detach();
     }
     close(server_fd);

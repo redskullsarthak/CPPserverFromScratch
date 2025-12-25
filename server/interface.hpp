@@ -1,9 +1,12 @@
+#pragma once
+
 #include <string>
-#include <tcpListner.h>
+#include "tcpListner.h"
 
 class baseInterface{
 
     public : 
+  virtual ~baseInterface() = default;
       virtual bool get(HttpReq &hr)=0;
       virtual bool post(HttpReq &hr)=0;
       virtual bool patch(HttpReq &hr)=0;

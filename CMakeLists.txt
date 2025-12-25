@@ -6,32 +6,22 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-add_executable(utils_main
-  Utils/main.cpp
-  Utils/tcpListner.cpp
-)
-
-target_include_directories(utils_main PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/Utils
-)
-
-# Needed for std::thread on some toolchains
+# Find threads package
 set(THREADS_PREFER_PTHREAD_FLAG ON)
 find_package(Threads REQUIRED)
 
-target_link_libraries(utils_main PRIVATE Threads::Threads)
+# Add the executable
+add_executable(server_main
+    cmd/main.cpp
+    cmd/tcpListner.cpp
+    server/server.cpp
+)
 
-include(CTest)
+# Include directories
+target_include_directories(server_main PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmd
+    ${CMAKE_CURRENT_SOURCE_DIR}/server
+)
 
-if(BUILD_TESTING)
-  add_executable(request_test
-    internal/request/request_test.cpp
-    internal/request/request.cpp
-  )
-
-  target_include_directories(request_test PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/internal/request
-  )
-
-  add_test(NAME request_test COMMAND request_test)
-endif()
+# Link libraries
+target_link_libraries(server_main PRIVATE Threads::Threads)
