@@ -61,8 +61,5 @@ public:
     }
 };
 
-int readTCP(LineChannel &channel, int sck_fd); // sck_fd==socket file descriptor
+int readTCP(LineChannel &channel, int sck_fd,HttpReq &hr); // sck_fd==socket file descriptor
 
-// Minimal TCP server that prints lines received on a port.
-// Keeps main clean: all the socket + threading logic lives here.
-int runTCPLineServer(uint16_t port);

@@ -1,16 +1,41 @@
 #include "server.hpp"
 
-void server::readerAndWriterForOne(std::unique_ptr<LineChannel> channel, int client_sck_id){
-    std::thread reader ([&](){readTCP(*channel,client_sck_id);}); //
-    // have a consumer , currently writes to a file maybe we provide to some sort of interface that basically processes and responds 
-    std::string randomFN{"output"+client_sck_id};
-    std::ofstream f(randomFN);
-    std::string line;
-    while((*channel).pop(line)){
-         f << line << std::endl;// ideally  hr ,everything seperate , process it and send some response i guess
+void parseToParts(std::string &method, std::string &target, std::string &version, HttpReq& hr) {
+    if (hr.requestLine.empty()) return;
+    size_t firstSpace = hr.requestLine.find(' ');
+    if (firstSpace == std::string::npos) return;
+    method = hr.requestLine.substr(0, firstSpace);
+    size_t secondSpace = hr.requestLine.find(' ', firstSpace + 1);
+    if (secondSpace == std::string::npos) {
+        target = hr.requestLine.substr(firstSpace + 1);
+        return;
     }
+    target = hr.requestLine.substr(firstSpace + 1, secondSpace - (firstSpace + 1));
+    version = hr.requestLine.substr(secondSpace + 1);
+}
 
+
+void server::readerAndWriterForOne(std::unique_ptr<LineChannel> channel, int client_sck_id){
+    HttpReq httprequest;
+    std::thread reader ([&](){readTCP(*channel,client_sck_id,httprequest);}); //
+    // have a consumer , currently writes to a file maybe we provide to some sort of interface that basically processes and responds 
+    // std::string randomFN{"output"+client_sck_id};
+    // std::ofstream f(randomFN);
+    // std::string line;
+    // while((*channel).pop(line)){ // simulation of processing 
+    //      f << line << std::endl;// ideally  hr ,everything seperate , process it and send some response i guess
+    // }
     reader.join();
+    std::string method{},target{},version{};
+    parseToParts(method,target,version,httprequest);
+    std::unique_ptr<baseInterface> bi=std::move(rtr.getIntr(target));
+    if(method=="get") bi->get(httprequest);
+    else if(method=="post") bi->post(httprequest);
+    else if(method=="put") bi->patch(httprequest);
+    else if(method=="delete") bi->del(httprequest);
+    else{
+        send(client_sck_id,"wrong Handler",12,0);
+    }
     sem_post(&sm);// increase the amount of threads as this is done 
 }
 

@@ -76,10 +76,9 @@ void parser(std::string &line, HttpReq& hr, int &state) {
     }
 }
 
-int readTCP(LineChannel & channel,int sck_fd) { //sck_fd==client socket file descriptor 
+int readTCP(LineChannel & channel,int sck_fd,HttpReq &httprequest) { //sck_fd==client socket file descriptor 
     char buffer[4096];// faster than 8 bytes as recv is a system call , mode switch overhead avoided 512 times 
     std::string s;//(state machine)
-    HttpReq httprequest;
     int cnt=1;
     while (true) {
         auto sz=recv(sck_fd,buffer,sizeof(buffer),0); // instead of file read the data into a buffer from a socket ,return 0 when connection is closed 
@@ -101,8 +100,6 @@ int readTCP(LineChannel & channel,int sck_fd) { //sck_fd==client socket file des
         parser(s,httprequest,cnt);
         s.clear();
     }
-    std::string method{},target{},version{};
-    parseToParts(method,target,version,httprequest);
     // std::cout<<"method :"<<method<<std::endl<<"target :"<<target<<std::endl<<"version :"<<version<<std::endl;
     // for(auto &kp:httprequest.headers){
     //     std::cout<<kp.first<<" "<<kp.second<<std::endl;
